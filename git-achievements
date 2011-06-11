@@ -76,7 +76,7 @@ function unlock_achievement()
     output_achievement "$@" >&2
     output_achievement "$@" >> "${ACHIEVEMENTSLOGFILE}"
 
-    if [ "`git config --global achievement.upload`" = "true" ] ; then
+    if [ "`pref_git_cmd config --global achievement.upload`" = "true" ] ; then
         publish_achievements "$@"
     fi
 }
@@ -128,21 +128,21 @@ function count_unlock_achievement
 function unalias_command
 {
     #XXX maybe this should be recursive?
-    local cmdline=$(git config --get "alias.$1")
+    local cmdline=$(pref_git_cmd config --get "alias.$1")
     echo $cmdline
 }
 
 function check_for_achievements
 {
     # Anyone know of a cleaner way of checking for hooks?
-    gitdir=`git rev-parse --git-dir 2>/dev/null`
+    gitdir=`pref_git_cmd rev-parse --git-dir 2>/dev/null`
     hooks=`ls -F $gitdir/hooks/ 2>/dev/null | grep -e '\*$' | grep -ve 'sample\*$' | wc -l`
     if [ ${hooks} -ge 1 ] ; then
         hcount_unlock_achievement "Carpenter" "Custom git hooks are installed which help catch issues before they are shared." "$hooks"
     fi
 
     # Custom command
-    if [ -e "`git --exec-path`/$1" ] && [ $1 != "achievements" ] && echo "$1" | grep -q -v ^- ; then
+    if [ -e "`pref_git_cmd --exec-path`/$1" ] && [ $1 != "achievements" ] && echo "$1" | grep -q -v ^- ; then
         unlock_achievement "Inventor ($1)" "Used a command that isn't part of the built in Git command"
     fi
 
@@ -201,7 +201,7 @@ function check_for_achievements
             ;;
         commit )
             count_unlock_achievement "Author" "Made 2^Level commits using git commit." "$1"
-            if [ "`git log --pretty=oneline | wc -l`" -eq "1" ] ; then
+            if [ "`pref_git_cmd log --pretty=oneline | wc -l`" -eq "1" ] ; then
                 unlock_achievement "Let there be light" "Commit without a parent." "$1"
             fi
             case $2 in
@@ -373,7 +373,7 @@ function publish_achievements
 
     cd "${git_achievements_dir}"
 
-    user=`git config --global user.name`
+    user=`pref_git_cmd config --global user.name`
 
 echo "
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -447,33 +447,33 @@ There are $total Achievements. Some achievements can be leveled up depending on 
     cat "${ACHIEVEMENTSLOGFILE}"  | grep -ve '^$' | grep -v 'Git Achievement Unlocked!' | grep -v '*' | sed -e 's/^ *//g'  -e 's/ *$//g' | awk '{ if (NR % 2 != 0) printf "<item><title>" $0 "</title>"; else printf "<description>" $0 "</description></item>\n" }' | tail -n 20 | sed '1!G;h;$!d' >> index.rss
     echo '</channel></rss>' >> index.rss
 
-    abortcount=`git status | grep 'Changes to be committed' | wc -l`
+    abortcount=`pref_git_cmd status | grep 'Changes to be committed' | wc -l`
     if [ ! $abortcount -eq 0 ] ; then
         echo "There are staged changes in the repository, updates let uncommitted"
         return
     fi
 
-    if [ ! "`git config --global achievement.upload`" = "true" ] ; then
+    if [ ! "`pref_git_cmd config --global achievement.upload`" = "true" ] ; then
         echo "Global achievement.upload not set to true, updates left uncommited"
         return
     fi
 
     echo "Adding new achievements and publishing to origin."
-    git add index.html index.rss
+    pref_git_cmd add index.html index.rss
     if [ -z "${1}" ] ; then
         message="Publishing updated achievement"
     else
         message="New achievement $1"
     fi
-    git commit -qm "${message}"
-    git push origin gh-pages
+    pref_git_cmd commit -qm "${message}"
+    pref_git_cmd push origin gh-pages
 }
 
 ACTIONLOGFILE="$HOME/.git-achievements-action.log"
 ACHIEVEMENTSLOGFILE="$HOME/.git-achievements.log"
 
 if [ ! "$1" = "achievements" ] ; then
-    git "$@"
+    pref_git_cmd "$@"
     r=$?
     if [ ! ${r} -eq 0 ] ; then
         exit $r
